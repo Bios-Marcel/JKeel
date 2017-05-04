@@ -15,11 +15,13 @@ public class JKeelTest
 	public void test() throws FileNotFoundException, IOException
 	{
 		final JKeel jkeel = new JKeel();
-		jkeel.setLanguage(new File(getClass().getResource("/com/msc/jkeel/lang_de.loc").getFile()), "english");
+		jkeel.setLanguage(new File(getClass().getResource("/com/msc/jkeel/lang_test.loc").getFile()));
 		assertEquals("Wie geht's dir, ([Name]).", jkeel.getText("test"));
 		assertEquals("Wie geht's dir, Marcel.", jkeel.getText("test", "Marcel"));
 		assertEquals("Wie geht's dir, Marcel.", jkeel.getText("test", "Marcel", "Hey"));
 		assertEquals("Wie geht's dir, Hey.", jkeel.getText("test", "Hey", "Marcel"));
 		assertEquals("Wie geht's dir, Hey.", jkeel.getText("test", new ReplacePair("Name", "Hey"), new ReplacePair("Name", "Fail")));
+		assertEquals("привет", jkeel.getText("russian"));
+		assertEquals("Häällo", jkeel.getText("umlaut"));
 	}
 }

@@ -6,8 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -23,22 +21,14 @@ public class JKeel
 		return globalInstance;
 	}
 
-	/**
-	 * Map that holds the properties for each language.
-	 */
-	private final Map<String, Properties>	data			= new HashMap<>();
-	/**
-	 * Language that is supposed to be used as the default.
-	 */
-	private String							defaultLanguage	= null;
+	private final Properties	fallbackLanguage	= new Properties();
+	private final Properties	language			= new Properties();
 
 	/**
 	 * Loads a language and adds it as a default if wanted.
 	 *
-	 * @param localizationFile
+	 * @param file
 	 *            the file to load the language from
-	 * @param language
-	 *            name(key) of the language
 	 * @param asDefaultLanguage
 	 *            if the language should be the default language
 	 * @throws FileNotFoundException
@@ -46,89 +36,68 @@ public class JKeel
 	 * @throws IOException
 	 *             if the language file couldn't be loaded
 	 */
-	private void loadLanguage(final File localizationFile, final String language, final boolean asDefaultLanguage)
-			throws FileNotFoundException, IOException
+	private void loadLanguage(final File file, final boolean asDefaultLanguage) throws FileNotFoundException, IOException
 	{
-		final Properties languageProperties = new Properties();
-		try (InputStreamReader reader = new InputStreamReader(new FileInputStream(localizationFile), StandardCharsets.UTF_8))
+		System.out.println("Loading");
+		try (final InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))
 		{
-			languageProperties.load(reader);
-			data.put(language, languageProperties);
-
 			if (asDefaultLanguage)
 			{
-				defaultLanguage = language;
+				fallbackLanguage.load(reader);
+				fallbackLanguage.keySet().forEach(key -> System.out.println(fallbackLanguage.getProperty((String) key)));
+			}
+			else
+			{
+				language.load(reader);
+				language.keySet().forEach(key -> System.out.println(language.getProperty((String) key)));
 			}
 		}
 	}
 
 	/**
-	 * Deletes all loaded languages and loads the given one as the default.
+	 * Sets a localization file as the language file.
 	 *
-	 * @param localizationFile
+	 * @param file
 	 *            the file to load the language from
-	 * @param language
-	 *            name(key) of the language
 	 * @throws FileNotFoundException
 	 *             if the language file wasn't found
 	 * @throws IOException
 	 *             if the language file couldn't be loaded
 	 */
-	public void setLanguage(final File localizationFile, final String language)
-			throws FileNotFoundException, IOException
+	public void setLanguage(final File file) throws FileNotFoundException, IOException
 	{
-		data.clear();
-		loadLanguage(localizationFile, language, true);
+		loadLanguage(file, false);
 	}
 
 	/**
-	 * Adds a language.
+	 * Loads a localization file as the fallback file.
 	 *
-	 * @param localizationFile
+	 * @param file
 	 *            the file to load the language from
-	 * @param language
-	 *            name(key) of the language
-	 * @param asDefaultLanguage
-	 *            use this as the default language
 	 * @throws FileNotFoundException
 	 *             if the language file wasn't found
 	 * @throws IOException
 	 *             if the language file couldn't be loaded
 	 */
-	public void addLanguage(final File localizationFile, final String language, final boolean asDefaultLanguage)
-			throws FileNotFoundException, IOException
+	public void setFallbackLanguage(final File file) throws FileNotFoundException, IOException
 	{
-		loadLanguage(localizationFile, language, asDefaultLanguage);
+		loadLanguage(file, true);
 	}
 
 	/**
-	 * Deletes a language if it's not the default language.
-	 *
-	 * @param language
-	 *            to delete
-	 * @return true if it has been deleted, otherwise false (was default)
+	 * Clears the Properties containing the loaded fallback Language.
 	 */
-	public boolean removeLanguage(final String language)
+	public void removeFallbackLanguage()
 	{
-		if (language.equals(defaultLanguage))
-		{
-			return false;
-		}
-		data.remove(language);
-		return true;
+		fallbackLanguage.clear();
 	}
 
 	/**
-	 * Sets a language as a defualt, only works if that language is already loaded.
-	 *
-	 * @param language
-	 *            to set as default
-	 * @return true if the language was set, otherwise false (wasn't loaded)
+	 * Clears the Properties containing the loaded language.
 	 */
-	public void setDefaultLanguage(final String language)
+	public void removeLanguage()
 	{
-		checkLanguage(language);
-		defaultLanguage = language;
+		language.clear();
 	}
 
 	/**
@@ -140,7 +109,7 @@ public class JKeel
 	 */
 	public String getText(final String key)
 	{
-		return getTextOfLanguage(defaultLanguage, key, new String[] {});
+		return getText(key, new String[] {});
 	}
 
 	/**
@@ -154,24 +123,7 @@ public class JKeel
 	 */
 	public String getText(final String key, final String... replacements)
 	{
-		return getTextOfLanguage(defaultLanguage, key, replacements);
-	}
-
-	/**
-	 * Returns the text that has been set and replaces one after another.
-	 *
-	 * @param language
-	 *            the language to retrieve the text from
-	 * @param key
-	 *            the key of the text
-	 * @param replacements
-	 *            replacements for the tags
-	 * @return
-	 */
-	public String getTextOfLanguage(final String language, final String key, final String... replacements)
-	{
-		checkLanguage(language);
-		String string = data.get(language).getProperty(key);
+		String string = language.getProperty(key, fallbackLanguage.getProperty(key));
 		if (Objects.nonNull(string))
 		{
 			for (final String replacement : replacements)
@@ -179,19 +131,12 @@ public class JKeel
 				string = string.replaceFirst("(\\(\\[.*?\\]\\))", replacement);
 			}
 		}
-		else if (!isDefaultLanguage(language))
-		{
-			return getTextOfLanguage(language, key, replacements);
-		}
 		return string;
-
 	}
 
 	/**
 	 * Returns the text that has been set and replaces tags by their name.
 	 *
-	 * @param language
-	 *            the language to retrieve the text from
 	 * @param key
 	 *            the key of the text
 	 * @param tagAndReplacement
@@ -200,22 +145,7 @@ public class JKeel
 	 */
 	public String getText(final String key, final ReplacePair... tagAndReplacement)
 	{
-		return getTextOfLanguage(defaultLanguage, key, tagAndReplacement);
-	}
-
-	/**
-	 * Returns the text that has been set and replaces tags by their name.
-	 *
-	 * @param key
-	 *            the key of the text
-	 * @param tagAndReplacement
-	 *            tags that should be replaced including their replacementtext
-	 * @return the text with replaced tags
-	 */
-	public String getTextOfLanguage(final String language, final String key, final ReplacePair... tagAndReplacement)
-	{
-		checkLanguage(language);
-		String string = data.get(language).getProperty(key);
+		String string = language.getProperty(key, fallbackLanguage.getProperty(key));
 		if (Objects.nonNull(string))
 		{
 			for (final ReplacePair replacementPair : tagAndReplacement)
@@ -223,70 +153,6 @@ public class JKeel
 				string = string.replaceAll("(?i)(\\(\\[" + replacementPair.getTag() + "?\\]\\))", replacementPair.getReplacement());
 			}
 		}
-		else if (!isDefaultLanguage(language))
-		{
-			return getTextOfLanguage(language, key, tagAndReplacement);
-		}
 		return string;
-	}
-
-	/**
-	 * @return {@link #defaultLanguage}
-	 */
-	public String getDefaultLanguage()
-	{
-		return defaultLanguage;
-	}
-
-	/**
-	 * Checks whether a language is the default one.
-	 *
-	 * @param language
-	 *            the language to check
-	 * @return true if it is, false otherwise
-	 */
-	public boolean isDefaultLanguage(final String language)
-	{
-		if (Objects.isNull(language) || Objects.isNull(defaultLanguage))
-		{
-			return false;
-		}
-		return language.equalsIgnoreCase(defaultLanguage);
-	}
-
-	/**
-	 * Checks if a language is loaded.
-	 *
-	 * @param language
-	 *            the language to check for
-	 * @throws LanguageNotFoundException
-	 *             if the language isn't loaded
-	 */
-	private void checkLanguage(final String language)
-	{
-		if (Objects.isNull(data.get(language)))
-		{
-			throw new LanguageNotFoundException("Language '" + language + "' couldn't be found.");
-		}
-	}
-
-	/**
-	 * Checks whether a language is loaded.
-	 *
-	 * @param language
-	 *            the language to check for
-	 * @return true if it is loaded, false otherwise.
-	 */
-	public boolean isLanguageLoaded(final String language)
-	{
-		try
-		{
-			checkLanguage(language);
-			return true;
-		}
-		catch (final LanguageNotFoundException e)
-		{
-			return false;
-		}
 	}
 }
