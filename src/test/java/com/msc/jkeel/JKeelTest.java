@@ -12,9 +12,21 @@ public class JKeelTest
 {
 
 	@Test
-	public void test() throws FileNotFoundException, IOException
+	public void testBasicUncached() throws FileNotFoundException, IOException
 	{
-		final JKeel jkeel = new JKeel();
+		final JKeel jkeel = new JKeelUncached();
+		doBasicTests(jkeel);
+	}
+
+	@Test
+	public void testBasicCached() throws FileNotFoundException, IOException
+	{
+		final JKeel jkeel = new JKeelCached();
+		doBasicTests(jkeel);
+	}
+
+	private void doBasicTests(final JKeel jkeel) throws FileNotFoundException, IOException
+	{
 		jkeel.setLanguage(new File(getClass().getResource("/com/msc/jkeel/lang_test.loc").getFile()));
 		assertEquals("Wie geht's dir, ([Name]).", jkeel.getText("test"));
 		assertEquals("Wie geht's dir, Marcel.", jkeel.getText("test", "Marcel"));
